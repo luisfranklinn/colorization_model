@@ -187,18 +187,20 @@ class FlowColorizer(nn.Module):
         c_v    = (c_v_px[:, v_src] + c_v_px[:, v_dst]) / 2
         ab_flat = ab_init.permute(0, 2, 3, 1).reshape(B, H * W, 2)
 
-        # cvxpylayers requer float64; convertemos antes e voltamos depois
-        c_h64     = c_h.double()
-        c_v64     = c_v.double()
-        ab_flat64 = ab_flat.double()
+        # cvxpylayers/ECOS é CPU-only; convertemos para float64 + CPU antes e
+        # devolvemos os resultados para o device original depois
+        device = x.device
+        c_h64     = c_h.double().cpu()
+        c_v64     = c_v.double().cpu()
+        ab_flat64 = ab_flat.double().cpu()
 
         results = []
         for b in range(B):
             (ab_b,) = self.flow_layer(
                 c_h64[b], c_v64[b], ab_flat64[b],
-                solver_args={"solve_method": "ECOS"},
+                solver_args={"solve_method": "SCS"},
             )
-            results.append(ab_b.float())  # volta para float32
+            results.append(ab_b.float().to(device))  # volta para float32 e device original
 
         ab_opt = (torch.stack(results)           # [B, n, 2]
                       .reshape(B, H, W, 2)

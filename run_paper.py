@@ -436,7 +436,7 @@ def save_latex_table(metrics_cnn, metrics_mcf, path):
                f"${m['SSIM'][0]:.3f} \\pm {m['SSIM'][1]:.3f}$ \\\\")
         lines.append(row)
     lines += [r"\hline", r"\end{tabular}", r"\end{table}"]
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     print(f"  Salvo: {path}")
 
@@ -471,7 +471,7 @@ def save_model_summary(model, path):
         "    Backprop via diferenciação implícita das condições KKT",
         "=" * 55,
     ]
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     print(f"  Salvo: {path}")
 
@@ -490,6 +490,8 @@ def main():
     parser.add_argument("--lam",     type=float, default=1.0)
     parser.add_argument("--data",    type=str,   default="./data")
     parser.add_argument("--metrics-samples", type=int, default=300)
+    parser.add_argument("--no-train", action="store_true",
+                        help="Pula treinamento e carrega model_best.pth existente")
     args = parser.parse_args()
 
     DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -534,25 +536,31 @@ def main():
     save_model_summary(model, os.path.join(OUT, "model_summary.txt"))
 
     # ── Treinamento ───────────────────────────────────────────────────────
-    print(f"\n[3/7] Treinando por {args.epochs} épocas...")
+    best_path = os.path.join(OUT, "model_best.pth")
     train_losses, val_losses = [], []
-    best_val, best_path = float("inf"), os.path.join(OUT, "model_best.pth")
 
-    for epoch in range(1, args.epochs + 1):
-        tr = train(model, train_loader, optimizer, DEVICE)
-        vl = evaluate(model, val_loader,  DEVICE)
-        scheduler.step()
-        train_losses.append(tr)
-        val_losses.append(vl)
-        marker = ""
-        if vl < best_val:
-            best_val = vl
-            torch.save(model.state_dict(), best_path)
-            marker = " ← melhor"
-        print(f"  Época {epoch:3d}/{args.epochs}  "
-              f"treino={tr:.4f}  val={vl:.4f}{marker}")
+    if args.no_train:
+        print(f"\n[3/7] Pulando treinamento — carregando {best_path}...")
+        model.load_state_dict(torch.load(best_path, map_location=DEVICE))
+    else:
+        print(f"\n[3/7] Treinando por {args.epochs} épocas...")
+        best_val = float("inf")
 
-    model.load_state_dict(torch.load(best_path, map_location=DEVICE))
+        for epoch in range(1, args.epochs + 1):
+            tr = train(model, train_loader, optimizer, DEVICE)
+            vl = evaluate(model, val_loader,  DEVICE)
+            scheduler.step()
+            train_losses.append(tr)
+            val_losses.append(vl)
+            marker = ""
+            if vl < best_val:
+                best_val = vl
+                torch.save(model.state_dict(), best_path)
+                marker = " ← melhor"
+            print(f"  Época {epoch:3d}/{args.epochs}  "
+                  f"treino={tr:.4f}  val={vl:.4f}{marker}")
+
+        model.load_state_dict(torch.load(best_path, map_location=DEVICE))
 
     # ── Métricas ──────────────────────────────────────────────────────────
     print("\n[4/7] Calculando métricas quantitativas...")
@@ -587,7 +595,7 @@ def main():
 
     # Salva CSV
     csv_path = os.path.join(OUT, "metrics.csv")
-    with open(csv_path, "w", newline="") as f:
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["Método", "MSE_mean", "MSE_std", "PSNR_mean", "PSNR_std",
                     "SSIM_mean", "SSIM_std"])
@@ -605,7 +613,10 @@ def main():
     print("\n[5/7] Gerando figuras...")
 
     print("  → Fig 1: Curvas de treinamento")
-    plot_training_curves(train_losses, val_losses)
+    if train_losses:
+        plot_training_curves(train_losses, val_losses)
+    else:
+        print("     (pulado — sem dados de treino nesta execução)")
 
     print("  → Fig 2: Grade de amostras")
     vis_ds = _Slice(raw_val, list(range(6)))
