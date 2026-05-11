@@ -1,0 +1,19 @@
+=======================================================
+  Arquitetura: CNN + Min-Cost Flow para Colorização
+=======================================================
+  Parâmetros treináveis :    1,927,524
+  Parâmetros totais     :    1,927,524
+  Tamanho do patch      : 32 × 32
+  Arestas horizontais   :          992
+  Arestas verticais     :          992
+  Variáveis no QP       :        2,048
+-------------------------------------------------------
+  Componentes:
+    UNetEncoder  — encoder/decoder com skip connections
+    CostPredictor — edge_head (Softplus) + color_head (Tanh)
+    FlowLayer    — QP diferenciável via cvxpylayers/ECOS
+-------------------------------------------------------
+  Formulação do QP:
+    min  Σ c_h·‖Δab_h‖² + Σ c_v·‖Δab_v‖² + λ·‖ab−ab_init‖²
+    Backprop via diferenciação implícita das condições KKT
+=======================================================

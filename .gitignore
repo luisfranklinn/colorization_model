@@ -1,0 +1,10 @@
+# Dataset (baixado automaticamente por run_paper.py)
+data/
+
+# Cache Python
+__pycache__/
+*.pyc
+
+# Ambiente virtual
+.venv/
+env/
