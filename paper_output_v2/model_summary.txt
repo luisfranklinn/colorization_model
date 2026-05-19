@@ -1,0 +1,12 @@
+==========================================================
+  Comparação de Arquiteturas — SBPO V2
+==========================================================
+  Dataset       : STL-10 (64×64)
+  Display       : 192×192 (interpolação bicúbica)
+
+  Modelo          Parâm Descrição
+  ------------------------------------------------------
+  CNN                 ?   U-Net → Conv 1×1 → ab direto
+  GNN                 ?   U-Net → 3× WeightedGraphConv → ab
+  MCF                 ?   U-Net → QP Min-Cost Flow (32×32) → ab
+==========================================================
